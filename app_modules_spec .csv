@@ -1,0 +1,8 @@
+Module Name,Feature Summary,Supported APIs,Known Issues/Limitations
+UserAuth,"Basic login/logout, no 2FA",Internal only,"No social login, no rate-limiting"
+ProductCatalog,Product listing and search,None,"Slow for >200 items, mobile lags"
+Cart/Checkout,"Add/remove, purchase, confirmation",Internal only,No coupon or promo code API
+OrderTracking,"Track status, estimated delivery",None,"No push notifications, no webhooks"
+Feedback,Submit and view feedback,None,"No rating system, not extensible"
+AdminPanel,Basic CRUD for users/products/orders,Internal,"No audit log, no analytics dashboard"
+Reports,Sales and inventory summary (static pages),None,"No API, no export, not real-time"

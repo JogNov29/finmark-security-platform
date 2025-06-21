@@ -1,0 +1,7 @@
+Device,IP_Address,Role,OS,Open_Ports,Protocols,Notes
+Router1,10.0.0.1,Core Router,Cisco IOS,"80,443,22","HTTP, SSH",Default password in use
+WebServer1,10.0.0.20,Web Server,Ubuntu 18.04,"80,443","HTTP, HTTPS",Outdated SSL/TLS
+DBServer1,10.0.0.30,DB Server,Windows 2012,1433,MSSQL,No firewall
+PC-Client-01,10.0.0.101,User PC,Win 10 Pro,3389,RDP,Frequent RDP dropouts
+PC-Client-02,10.0.0.102,User PC,Win 10 Home,,RDP,Outdated OS; no antivirus
+Printer-01,10.0.0.150,Network Printer,,9100,RAW,"Unsecured printing, no password"
