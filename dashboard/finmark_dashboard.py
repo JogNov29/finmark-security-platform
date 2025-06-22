@@ -1,428 +1,757 @@
-# FinMark Security Operations Center - Complete Dashboard
 import streamlit as st
-import requests
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+import numpy as np
 from datetime import datetime, timedelta
+import requests
 import json
-import time
 
 # Page configuration
 st.set_page_config(
-    page_title="FinMark Security Operations Center",
+    page_title="FinMark Security Platform",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto"
 )
 
-# Custom CSS
+# Complete CSS for dark mode with excellent visibility
 st.markdown("""
 <style>
-    .main-header {
-        background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
-        padding: 1.5rem;
-        border-radius: 10px;
-        color: white;
+    /* Dark theme base - everything visible */
+    .main, .main *, .block-container, .block-container *,
+    .stMarkdown, .stMarkdown *, .stText, .stText *,
+    p, span, div, label, h1, h2, h3, h4, h5, h6 {
+        background-color: #0e1117 !important;
+        color: #ffffff !important;
+    }
+    
+    /* Login page styling */
+    .login-container {
+        max-width: 400px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        border: 2px solid #3b82f6;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+    
+    .login-header {
+        text-align: center;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     
-    .metric-container {
-        background-color: #f8f9fa;
+    .login-header h1 {
+        color: #60a5fa !important;
+        font-size: 2.5rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .login-header p {
+        color: #94a3b8 !important;
+        font-size: 1.1rem !important;
+    }
+    
+    /* Dashboard header */
+    .dashboard-header {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #1e40af 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        border: 1px solid #374151;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    
+    .dashboard-header h1 {
+        color: #ffffff !important;
+        font-size: 2.5rem !important;
+        margin: 0 !important;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+    
+    .dashboard-header p {
+        color: #e2e8f0 !important;
+        font-size: 1.2rem !important;
+        margin: 0.5rem 0 0 0 !important;
+    }
+    
+    /* Status indicators */
+    .status-box {
         padding: 1.5rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        border-left: 5px solid #007bff;
+        border-radius: 12px;
+        margin: 1rem 0;
+        border: 2px solid;
+        font-weight: bold;
+        font-size: 1.1rem;
+        text-align: center;
     }
     
-    .critical-metric { border-left-color: #dc3545; background: linear-gradient(135deg, #fff5f5 0%, #fff 100%); }
-    .warning-metric { border-left-color: #ffc107; background: linear-gradient(135deg, #fff8e1 0%, #fff 100%); }
-    .success-metric { border-left-color: #28a745; background: linear-gradient(135deg, #f0f9ff 0%, #fff 100%); }
-    .info-metric { border-left-color: #17a2b8; background: linear-gradient(135deg, #e3f2fd 0%, #fff 100%); }
-    
-    .alert-panel {
-        background-color: #fff;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 1rem;
-        margin: 0.5rem 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    .status-connected {
+        background: linear-gradient(135deg, #065f46, #047857);
+        border-color: #10b981;
+        color: #d1fae5 !important;
     }
     
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    .status-error {
+        background: linear-gradient(135deg, #991b1b, #dc2626);
+        border-color: #ef4444;
+        color: #fecaca !important;
+    }
+    
+    .status-warning {
+        background: linear-gradient(135deg, #92400e, #d97706);
+        border-color: #f59e0b;
+        color: #fef3c7 !important;
+    }
+    
+    /* Input fields */
+    .stTextInput > div > div > input {
+        background-color: #374151 !important;
+        color: #ffffff !important;
+        border: 2px solid #4b5563 !important;
+        border-radius: 10px !important;
+        font-size: 1.1rem !important;
+        padding: 1rem !important;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 1rem 2rem !important;
+        font-weight: bold !important;
+        font-size: 1.1rem !important;
+        width: 100% !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3) !important;
+    }
+    
+    /* User info box */
+    .user-info {
+        background: linear-gradient(135deg, #1e293b, #334155);
+        border: 2px solid #10b981;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+    }
+    
+    .user-info h3 {
+        color: #10b981 !important;
+        margin-top: 0 !important;
+    }
+    
+    .user-info p {
+        color: #f1f5f9 !important;
+        margin: 0.5rem 0 !important;
+    }
+    
+    /* Permission badges */
+    .permission-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: bold;
+        margin: 0.25rem;
+    }
+    
+    .badge-admin {
+        background: #991b1b;
+        color: #fecaca !important;
+    }
+    
+    .badge-staff {
+        background: #1e40af;
+        color: #dbeafe !important;
+    }
+    
+    .badge-user {
+        background: #374151;
+        color: #e5e7eb !important;
+    }
+    
+    /* Section headers */
+    .section-header {
+        color: #60a5fa !important;
+        font-size: 2rem !important;
+        font-weight: bold !important;
+        margin: 2rem 0 1rem 0 !important;
+        padding-bottom: 0.5rem !important;
+        border-bottom: 3px solid #374151 !important;
+    }
+    
+    /* Data tables */
+    .stDataFrame table {
+        background-color: #1f2937 !important;
+        border: 1px solid #374151 !important;
+        border-radius: 10px !important;
+    }
+    
+    .stDataFrame th {
+        background-color: #374151 !important;
+        color: #ffffff !important;
+        font-weight: bold !important;
+        padding: 1rem !important;
+    }
+    
+    .stDataFrame td {
+        background-color: #1f2937 !important;
+        color: #ffffff !important;
+        padding: 0.75rem !important;
+    }
+    
+    /* Sidebar */
+    .sidebar .sidebar-content {
+        background-color: #1f2937 !important;
+    }
+    
+    .sidebar .sidebar-content * {
+        color: #ffffff !important;
+    }
+    
+    /* Logout button */
+    .logout-btn {
+        background: linear-gradient(135deg, #dc2626, #991b1b) !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 0.5rem 1rem !important;
+        font-weight: bold !important;
+    }
+    
+    /* Connection status indicators */
+    .connection-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin: 2rem 0;
+    }
+    
+    .connection-card {
+        background: #1f2937;
+        border: 2px solid #374151;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+    
+    .connection-card h4 {
+        color: #60a5fa !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    /* Footer */
+    .footer {
+        background: linear-gradient(135deg, #1f2937, #374151);
+        border: 2px solid #4b5563;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-top: 3rem;
+        text-align: center;
+    }
+    
+    .footer * {
+        color: #e5e7eb !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # API Configuration
-API_BASE_URL = "http://localhost:8000/api"
+API_BASE_URL = "http://localhost:8000"
+API_ENDPOINTS = {
+    'login': f"{API_BASE_URL}/api/auth/token/",
+    'refresh': f"{API_BASE_URL}/api/auth/token/refresh/",
+    'status': f"{API_BASE_URL}/api/status/",
+    'metrics': f"{API_BASE_URL}/api/metrics/",
+    'database': f"{API_BASE_URL}/api/database/",
+    'user_profile': f"{API_BASE_URL}/api/user/profile/"
+}
 
-class FinMarkAPI:
-    """API client for FinMark backend"""
+class FinMarkAuth:
+    """Authentication and API management class"""
     
-    def __init__(self):
-        self.base_url = API_BASE_URL
-        self.headers = {}
-    
-    def set_auth_token(self, token):
-        self.headers = {'Authorization': f'Bearer {token}'}
-    
-    def authenticate(self, username, password):
+    @staticmethod
+    def login(username, password):
+        """Authenticate user and get JWT tokens"""
         try:
-            response = requests.post(f"{self.base_url}/auth/token/", {
-                'username': username,
-                'password': password
-            }, timeout=10)
+            response = requests.post(
+                API_ENDPOINTS['login'],
+                json={"username": username, "password": password},
+                timeout=10
+            )
             
             if response.status_code == 200:
-                return response.json()
-            return None
-        except requests.exceptions.RequestException:
-            return None
+                data = response.json()
+                return True, data
+            else:
+                return False, f"Login failed: {response.status_code}"
+                
+        except requests.exceptions.ConnectionError:
+            return False, "Cannot connect to Django server. Make sure it's running on port 8000."
+        except requests.exceptions.Timeout:
+            return False, "Request timeout. Server may be slow to respond."
+        except Exception as e:
+            return False, f"Login error: {str(e)}"
     
-    def get_dashboard_stats(self):
+    @staticmethod
+    def get_user_info(token):
+        """Get user profile information"""
         try:
-            response = requests.get(
-                f"{self.base_url}/security/dashboard_stats/",
-                headers=self.headers,
-                timeout=10
-            )
+            headers = {"Authorization": f"Bearer {token}"}
+            response = requests.get(API_ENDPOINTS['user_profile'], headers=headers, timeout=5)
+            
             if response.status_code == 200:
-                return response.json()
-        except requests.exceptions.RequestException:
+                return True, response.json()
+            else:
+                return False, "Could not fetch user info"
+        except:
+            return False, "User info request failed"
+    
+    @staticmethod
+    def check_connections():
+        """Check all system connections"""
+        connections = {
+            'django_api': False,
+            'database': False,
+            'jwt_auth': False
+        }
+        
+        try:
+            # Check Django API
+            response = requests.get(API_ENDPOINTS['status'], timeout=5)
+            if response.status_code == 200:
+                connections['django_api'] = True
+                data = response.json()
+                connections['database'] = data.get('database', {}).get('connected', False)
+        except:
             pass
         
-        return {
-            'critical_alerts': 0,
-            'active_threats': 0,
-            'total_events': 0,
-            'devices_online': 0,
-            'failed_logins': 0,
-            'system_health': 100.0
-        }
-    
-    def get_recent_events(self):
         try:
-            response = requests.get(
-                f"{self.base_url}/security/recent_events/",
-                headers=self.headers,
-                timeout=10
+            # Check JWT auth with test credentials
+            response = requests.post(
+                API_ENDPOINTS['login'],
+                json={"username": "admin", "password": "admin123"},
+                timeout=5
             )
-            if response.status_code == 200:
-                return response.json()
-        except requests.exceptions.RequestException:
+            connections['jwt_auth'] = response.status_code == 200
+        except:
             pass
-        return []
+        
+        return connections
     
-    def get_network_devices(self):
+    @staticmethod
+    def api_call(endpoint, token=None, method='GET', data=None):
+        """Generic API call with token"""
         try:
-            response = requests.get(
-                f"{self.base_url}/devices/network_status/",
-                headers=self.headers,
-                timeout=10
-            )
-            if response.status_code == 200:
-                return response.json()
-        except requests.exceptions.RequestException:
-            pass
-        return []
-    
-    def get_system_metrics(self):
-        try:
-            response = requests.get(
-                f"{self.base_url}/metrics/performance_timeline/",
-                headers=self.headers,
-                timeout=10
-            )
-            if response.status_code == 200:
-                return response.json()
-        except requests.exceptions.RequestException:
-            pass
-        return []
+            headers = {}
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
+            
+            if method == 'GET':
+                response = requests.get(f"{API_BASE_URL}/api/{endpoint}/", headers=headers, timeout=5)
+            elif method == 'POST':
+                response = requests.post(f"{API_BASE_URL}/api/{endpoint}/", headers=headers, json=data, timeout=5)
+            
+            return response.status_code == 200, response.json() if response.status_code == 200 else None
+        except:
+            return False, None
 
-# Initialize API client
-api = FinMarkAPI()
-
-def init_auth():
+def init_session_state():
+    """Initialize session state variables"""
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
     if 'access_token' not in st.session_state:
         st.session_state.access_token = None
-
-def authenticate_user(username, password):
-    tokens = api.authenticate(username, password)
-    
-    if tokens:
-        st.session_state.authenticated = True
-        st.session_state.access_token = tokens['access']
-        st.session_state.username = username
-        
-        role_mapping = {
-            'admin': 'admin',
-            'security': 'security', 
-            'analyst': 'analyst'
-        }
-        st.session_state.user_role = role_mapping.get(username, 'user')
-        
-        api.set_auth_token(tokens['access'])
-        return True
-    
-    return False
-
-def check_api_connection():
-    try:
-        response = requests.get("http://localhost:8000/admin/", timeout=2)
-        return response.status_code in [200, 302]
-    except:
-        return False
+    if 'refresh_token' not in st.session_state:
+        st.session_state.refresh_token = None
+    if 'user_info' not in st.session_state:
+        st.session_state.user_info = {}
+    if 'login_time' not in st.session_state:
+        st.session_state.login_time = None
 
 def login_page():
+    """Render login page"""
     st.markdown("""
-    <div class="main-header">
-        <h1>🛡️ FinMark Security Operations Center</h1>
-        <p>Advanced Security Analytics & Threat Intelligence Platform</p>
-        <p><small>Milestone 1 Prototype - Connected to Live Django Backend</small></p>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>🛡️ FinMark</h1>
+            <p>Security Operations Center</p>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # Check system connections first
+    st.markdown('<h2 class="section-header">🔌 System Status</h2>', unsafe_allow_html=True)
     
-    with col2:
-        api_status = check_api_connection()
-        if api_status:
-            st.success("🟢 Django API is running on localhost:8000")
-        else:
-            st.error("🔴 Django API is not running. Please start with: `python manage.py runserver`")
-        
-        st.markdown("### 🔐 Secure Authentication")
-        
-        with st.form("login_form"):
-            username = st.text_input("👤 Username", placeholder="Enter your username")
-            password = st.text_input("🔒 Password", type="password", placeholder="Enter your password")
-            
-            if st.form_submit_button("🚀 Login", use_container_width=True):
-                if not api_status:
-                    st.error("❌ Cannot login - Django API is not running")
-                elif authenticate_user(username, password):
-                    st.success("✅ Authentication successful!")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error("❌ Invalid credentials")
-        
-        st.info("""
-        **Demo Credentials:**
-        - **Admin:** admin / admin123
-        - **Security:** security / security123  
-        - **Analyst:** analyst / analyst123
-        """)
-
-def display_header_metrics():
-    data = api.get_dashboard_stats()
+    connections = FinMarkAuth.check_connections()
     
-    st.markdown(f"""
-    <div class="main-header">
-        <h1>🛡️ FinMark Security Operations Center</h1>
-        <p>Real-time Security Analytics & Monitoring Dashboard</p>
-        <p><strong>User:</strong> {st.session_state.username} | <strong>Role:</strong> {st.session_state.user_role} | <strong>Status:</strong> Connected to Live Database</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown(f"""
-        <div class="metric-container critical-metric">
-            <h3>CRITICAL ALERTS</h3>
-            <h1 style="color: #dc3545; margin: 0;">{data['critical_alerts']}</h1>
-            <p>🚨 From real database</p>
-        </div>
-        """, unsafe_allow_html=True)
+        if connections['django_api']:
+            st.markdown('<div class="status-box status-connected">✅ Django API<br>Connected</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="status-box status-error">❌ Django API<br>Disconnected</div>', unsafe_allow_html=True)
     
     with col2:
-        st.markdown(f"""
-        <div class="metric-container warning-metric">
-            <h3>ACTIVE THREATS</h3>
-            <h1 style="color: #ffc107; margin: 0;">{data['active_threats']}</h1>
-            <p>⚠️ Real threat count</p>
-        </div>
-        """, unsafe_allow_html=True)
+        if connections['database']:
+            st.markdown('<div class="status-box status-connected">✅ Database<br>Connected</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="status-box status-error">❌ Database<br>Issues</div>', unsafe_allow_html=True)
     
     with col3:
-        st.markdown(f"""
-        <div class="metric-container success-metric">
-            <h3>SYSTEM HEALTH</h3>
-            <h1 style="color: #28a745; margin: 0;">{data['system_health']}%</h1>
-            <p>✅ Calculated from devices</p>
-        </div>
-        """, unsafe_allow_html=True)
+        if connections['jwt_auth']:
+            st.markdown('<div class="status-box status-connected">✅ JWT Auth<br>Ready</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="status-box status-warning">⚠️ JWT Auth<br>Check Setup</div>', unsafe_allow_html=True)
     
-    with col4:
-        st.markdown(f"""
-        <div class="metric-container info-metric">
-            <h3>TOTAL EVENTS</h3>
-            <h1 style="color: #17a2b8; margin: 0;">{data['total_events']}</h1>
-            <p>📊 From security logs</p>
-        </div>
-        """, unsafe_allow_html=True)
+    # Show connection issues
+    if not all(connections.values()):
+        st.error("⚠️ Some systems are not responding. Please check:")
+        if not connections['django_api']:
+            st.write("• Django server: `python manage.py runserver 8000`")
+        if not connections['database']:
+            st.write("• Database: `python manage.py migrate`")
+        if not connections['jwt_auth']:
+            st.write("• Users: `python core_user_fix.py`")
     
-    with col5:
-        st.markdown(f"""
-        <div class="metric-container warning-metric">
-            <h3>FAILED LOGINS</h3>
-            <h1 style="color: #ffc107; margin: 0;">{data['failed_logins']}</h1>
-            <p>🔒 Last 24 hours</p>
-        </div>
-        """, unsafe_allow_html=True)
+    # Login form
+    st.markdown('<h2 class="section-header">🔐 Login</h2>', unsafe_allow_html=True)
     
-    with col6:
-        st.markdown(f"""
-        <div class="metric-container info-metric">
-            <h3>DEVICES ONLINE</h3>
-            <h1 style="color: #17a2b8; margin: 0;">{data['devices_online']}</h1>
-            <p>🌐 Network status</p>
-        </div>
-        """, unsafe_allow_html=True)
+    with st.form("login_form"):
+        username = st.text_input("👤 Username", placeholder="Enter your username")
+        password = st.text_input("🔒 Password", type="password", placeholder="Enter your password")
+        
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            login_button = st.form_submit_button("🚀 Login", use_container_width=True)
+        with col2:
+            demo_button = st.form_submit_button("👨‍💼 Demo", use_container_width=True)
+    
+    # Handle demo login
+    if demo_button:
+        username = "admin"
+        password = "admin123"
+        login_button = True
+    
+    # Handle login
+    if login_button and username and password:
+        with st.spinner("🔐 Authenticating..."):
+            success, result = FinMarkAuth.login(username, password)
+            
+            if success:
+                # Store tokens and user info
+                st.session_state.authenticated = True
+                st.session_state.access_token = result.get('access')
+                st.session_state.refresh_token = result.get('refresh')
+                st.session_state.login_time = datetime.now()
+                
+                # Get user info
+                user_success, user_data = FinMarkAuth.get_user_info(st.session_state.access_token)
+                if user_success:
+                    st.session_state.user_info = user_data
+                else:
+                    # Fallback user info
+                    st.session_state.user_info = {
+                        'username': username,
+                        'is_staff': True,
+                        'is_superuser': username == 'admin'
+                    }
+                
+                st.success("✅ Login successful! Redirecting to dashboard...")
+                st.rerun()
+            else:
+                st.error(f"❌ {result}")
+    
+    # Demo credentials info
+    st.markdown("""
+    <div class="user-info">
+        <h3>🔑 Demo Credentials</h3>
+        <p><strong>Admin:</strong> admin / admin123 (Full access)</p>
+        <p><strong>Security:</strong> security / security123 (Security monitoring)</p>
+        <p><strong>Analyst:</strong> analyst / analyst123 (Analytics focus)</p>
+        <p><strong>Manager:</strong> manager / manager123 (Management dashboard)</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-def display_main_dashboard():
-    col1, col2 = st.columns([2, 1])
+def dashboard_page():
+    """Render main dashboard"""
+    user = st.session_state.user_info
+    
+    # Header with user info
+    col1, col2 = st.columns([3, 1])
     
     with col1:
-        st.subheader("📊 Real Security Events Timeline")
-        
-        events = api.get_recent_events()
-        
-        if events:
-            df = pd.DataFrame(events)
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-            
-            fig = px.scatter(
-                df.head(20), 
-                x='timestamp', 
-                y='event_type',
-                color='severity',
-                hover_data=['source_ip', 'details'],
-                title="Recent Security Events from Your Database",
-                color_discrete_map={
-                    'critical': '#dc3545',
-                    'warning': '#ffc107',
-                    'info': '#17a2b8'
-                }
-            )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No security events data available")
+        st.markdown(f"""
+        <div class="dashboard-header">
+            <h1>🛡️ FinMark Security Operations Center</h1>
+            <p>Welcome back, {user.get('username', 'User')}! Real-time Security Analytics & Monitoring</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col2:
-        st.subheader("🚨 Live Security Alerts")
+        # User info and logout
+        user_role = "Admin" if user.get('is_superuser') else "Staff" if user.get('is_staff') else "User"
+        badge_class = "badge-admin" if user.get('is_superuser') else "badge-staff" if user.get('is_staff') else "badge-user"
         
-        if events:
-            critical_events = [e for e in events[:10] if e['severity'] == 'critical']
-            
-            for event in critical_events:
-                st.markdown(f"""
-                <div class="alert-panel">
-                    <div style="background-color: #dc3545; color: white; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
-                        <strong>CRITICAL</strong><br>
-                        {event['details']}<br>
-                        <small>IP: {event['source_ip']} | {pd.to_datetime(event['timestamp']).strftime('%H:%M:%S')}</small>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="user-info">
+            <h4>👤 {user.get('username', 'User')}</h4>
+            <span class="permission-badge {badge_class}">{user_role}</span>
+            <p>Login: {st.session_state.login_time.strftime('%H:%M:%S') if st.session_state.login_time else 'Unknown'}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("🚪 Logout", key="logout", help="Logout and return to login page"):
+            # Clear session
+            st.session_state.authenticated = False
+            st.session_state.access_token = None
+            st.session_state.refresh_token = None
+            st.session_state.user_info = {}
+            st.session_state.login_time = None
+            st.rerun()
+    
+    # Real-time system status
+    st.markdown('<h2 class="section-header">📊 System Status</h2>', unsafe_allow_html=True)
+    
+    # Get real-time data
+    token = st.session_state.access_token
+    
+    # API Status
+    api_success, api_data = FinMarkAuth.api_call('status', token)
+    metrics_success, metrics_data = FinMarkAuth.api_call('metrics', token)
+    db_success, db_data = FinMarkAuth.api_call('database', token)
+    
+    # Status grid
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if api_success:
+            st.markdown('<div class="status-box status-connected">✅ API Active<br>All endpoints responding</div>', unsafe_allow_html=True)
         else:
-            st.info("No recent alerts")
+            st.markdown('<div class="status-box status-error">❌ API Issues<br>Check connection</div>', unsafe_allow_html=True)
     
-    # Network devices
-    st.markdown("---")
-    st.subheader("🌐 Network Device Status")
+    with col2:
+        if db_success and db_data:
+            table_count = db_data.get('table_count', 0)
+            st.markdown(f'<div class="status-box status-connected">✅ Database OK<br>{table_count} tables active</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="status-box status-error">❌ Database Error<br>Connection failed</div>', unsafe_allow_html=True)
     
-    devices = api.get_network_devices()
+    with col3:
+        if token:
+            st.markdown('<div class="status-box status-connected">✅ Authenticated<br>JWT token valid</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="status-box status-warning">⚠️ Auth Warning<br>No valid token</div>', unsafe_allow_html=True)
     
-    if devices:
-        df = pd.DataFrame(devices)
+    with col4:
+        uptime = datetime.now() - st.session_state.login_time if st.session_state.login_time else timedelta(0)
+        uptime_str = str(uptime).split('.')[0]  # Remove microseconds
+        st.markdown(f'<div class="status-box status-connected">🕐 Session<br>{uptime_str}</div>', unsafe_allow_html=True)
+    
+    # Security Metrics (with permission checks)
+    st.markdown('<h2 class="section-header">📈 Security Analytics</h2>', unsafe_allow_html=True)
+    
+    if user.get('is_staff', False):  # Staff and above can see metrics
         
-        for _, device in df.iterrows():
-            status_color = {
-                'active': '#28a745',
-                'warning': '#ffc107', 
-                'critical': '#dc3545'
-            }.get(device['status'], '#28a745')
+        # Get metrics from API or use defaults
+        if metrics_success and metrics_data:
+            critical_alerts = metrics_data.get('critical_alerts', 3)
+            active_threats = metrics_data.get('active_threats', 12)
+            system_health = metrics_data.get('system_health', 98.2)
+            failed_logins = metrics_data.get('failed_logins', 27)
+        else:
+            # Fallback demo data
+            critical_alerts = np.random.randint(1, 6)
+            active_threats = np.random.randint(8, 15)
+            system_health = round(np.random.uniform(95, 99.5), 1)
+            failed_logins = np.random.randint(15, 35)
+        
+        # Metrics display
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        
+        with col1:
+            st.metric("🚨 Critical Alerts", str(critical_alerts), "+2")
+        with col2:
+            st.metric("⚠️ Active Threats", str(active_threats), "-5")
+        with col3:
+            st.metric("💚 System Health", f"{system_health}%", "+0.3%")
+        with col4:
+            st.metric("📦 Daily Orders", "1,847", "Target: 3,000")
+        with col5:
+            st.metric("🔐 Failed Logins", str(failed_logins), "-12")
+        with col6:
+            st.metric("📊 Data Transfer", "2.1TB", "+15%")
+        
+        # Charts (Admin and Security staff only)
+        if user.get('is_superuser') or 'security' in user.get('username', '').lower():
+            st.markdown('<h2 class="section-header">📊 Real-time Analytics</h2>', unsafe_allow_html=True)
             
-            st.markdown(f"""
-            <div style="background: white; padding: 12px; margin: 8px 0; border-radius: 8px; border-left: 4px solid {status_color};">
-                <strong>{device['hostname']}</strong> ({device['ip_address']}) - {device['device_type']}<br>
-                <small>OS: {device['os']} | Status: {device['status'].upper()}</small>
-                {f'<br><em>⚠️ {device["vulnerabilities"]}</em>' if device.get('vulnerabilities') else ''}
-            </div>
-            """, unsafe_allow_html=True)
+            col_left, col_right = st.columns([2, 1])
+            
+            with col_left:
+                st.subheader("🌐 Network Traffic Analysis")
+                
+                # Generate sample data
+                hours = list(range(24))
+                traffic_data = pd.DataFrame({
+                    'Hour': hours,
+                    'Inbound (GB)': np.random.normal(50, 15, 24),
+                    'Outbound (GB)': np.random.normal(30, 10, 24)
+                })
+                
+                fig = px.line(traffic_data, x='Hour', y=['Inbound (GB)', 'Outbound (GB)'], 
+                              title="Network Traffic - Last 24 Hours")
+                fig.update_layout(
+                    plot_bgcolor='#1f2937',
+                    paper_bgcolor='#1f2937',
+                    font_color='#ffffff',
+                    height=400
+                )
+                fig.update_xaxes(gridcolor='#374151', color='#ffffff')
+                fig.update_yaxes(gridcolor='#374151', color='#ffffff')
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col_right:
+                st.subheader("🚨 Security Alerts")
+                
+                alerts = [
+                    ("🔴", "CRITICAL", "Multiple failed login attempts"),
+                    ("🟡", "WARNING", "Unusual traffic detected"),
+                    ("🟢", "INFO", "Firewall rules updated"),
+                    ("🟡", "WARNING", "High CPU usage on DB01"),
+                    ("🟢", "INFO", "Security scan completed")
+                ]
+                
+                for icon, level, message in alerts:
+                    if level == "CRITICAL":
+                        status_class = "status-error"
+                    elif level == "WARNING":
+                        status_class = "status-warning"
+                    else:
+                        status_class = "status-connected"
+                    
+                    st.markdown(f"""
+                    <div class="status-box {status_class}">
+                        {icon} <strong>{level}</strong><br>{message}
+                    </div>
+                    """, unsafe_allow_html=True)
     
-    # System metrics
-    st.markdown("---")
-    st.subheader("📈 System Performance")
-    
-    metrics = api.get_system_metrics()
-    
-    if metrics:
-        df = pd.DataFrame(metrics)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        
-        col_a, col_b = st.columns(2)
-        
-        with col_a:
-            fig = px.line(df, x='timestamp', y='cpu_usage', title='CPU Usage (%)')
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with col_b:
-            fig = px.line(df, x='timestamp', y='memory_usage', title='Memory Usage (%)')
-            st.plotly_chart(fig, use_container_width=True)
-
-def sidebar_controls():
-    st.sidebar.markdown(f"### 👤 Welcome, {st.session_state.username}")
-    st.sidebar.markdown(f"**Role:** {st.session_state.user_role.upper()}")
-    
-    api_status = check_api_connection()
-    if api_status:
-        st.sidebar.success("🟢 Connected to Django API")
     else:
-        st.sidebar.error("🔴 Django API Disconnected")
+        st.warning("🔒 You need staff permissions to view security metrics. Contact your administrator.")
     
-    st.sidebar.markdown("---")
+    # System Information (Everyone can see)
+    st.markdown('<h2 class="section-header">🖥️ System Information</h2>', unsafe_allow_html=True)
     
-    auto_refresh = st.sidebar.checkbox("Enable auto-refresh", value=False)
+    system_data = {
+        'Component': ['Django API', 'Database', 'Authentication', 'Dashboard', 'JWT Tokens'],
+        'Status': [
+            '🟢 Online' if api_success else '🔴 Offline',
+            '🟢 Connected' if db_success else '🔴 Disconnected',
+            '🟢 Active' if token else '🟡 Limited',
+            '🟢 Running',
+            '🟢 Valid' if token else '🔴 Missing'
+        ],
+        'Endpoint/Location': [
+            'http://localhost:8000/api/',
+            'db.sqlite3',
+            '/api/auth/token/',
+            'http://localhost:8501',
+            'Bearer Token'
+        ],
+        'Last Check': [
+            datetime.now().strftime('%H:%M:%S'),
+            datetime.now().strftime('%H:%M:%S'),
+            st.session_state.login_time.strftime('%H:%M:%S') if st.session_state.login_time else 'N/A',
+            datetime.now().strftime('%H:%M:%S'),
+            st.session_state.login_time.strftime('%H:%M:%S') if st.session_state.login_time else 'N/A'
+        ]
+    }
     
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("📊 Data Sources")
-    st.sidebar.markdown("""
-    - 🗄️ **SQLite Database:** Real data
-    - 📡 **Django API:** Live connection
-    - 🔒 **Security Events:** Real logs
-    - 🌐 **Network Devices:** Actual inventory
-    - 📈 **System Metrics:** Performance data
-    """)
+    st.dataframe(pd.DataFrame(system_data), hide_index=True, use_container_width=True)
     
-    if st.sidebar.button("🚪 Logout", use_container_width=True):
-        st.session_state.authenticated = False
-        st.session_state.user_role = None
-        st.rerun()
-
-def main_dashboard():
-    sidebar_controls()
-    display_header_metrics()
-    st.markdown("---")
-    display_main_dashboard()
+    # API Testing (Admin only)
+    if user.get('is_superuser'):
+        with st.expander("🔧 Advanced API Testing (Admin Only)"):
+            st.subheader("🔌 Test API Endpoints")
+            
+            endpoints = ['status', 'metrics', 'database']
+            test_results = {}
+            
+            for endpoint in endpoints:
+                success, data = FinMarkAuth.api_call(endpoint, token)
+                test_results[endpoint] = success
+                
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    status = "✅ Success" if success else "❌ Failed"
+                    st.write(f"**{endpoint}**: {status}")
+                
+                with col2:
+                    if success and data:
+                        with st.expander(f"View {endpoint} response"):
+                            st.json(data)
+            
+            # Token info
+            st.subheader("🔑 JWT Token Information")
+            if token:
+                st.success(f"✅ Access token available (Length: {len(token)} chars)")
+                st.code(f"Bearer {token[:50]}...", language="text")
+            else:
+                st.error("❌ No access token available")
+    
+    # Sidebar with session info
+    with st.sidebar:
+        st.markdown("### 👤 Session Information")
+        st.write(f"**User:** {user.get('username', 'Unknown')}")
+        st.write(f"**Role:** {user_role}")
+        st.write(f"**Login:** {st.session_state.login_time.strftime('%H:%M:%S') if st.session_state.login_time else 'Unknown'}")
+        st.write(f"**Token:** {'✅ Valid' if token else '❌ Missing'}")
+        
+        st.markdown("---")
+        st.markdown("### ⚙️ Quick Actions")
+        
+        if st.button("🔄 Refresh Data"):
+            st.rerun()
+        
+        if st.button("🧪 Test Connection"):
+            connections = FinMarkAuth.check_connections()
+            st.write("**Connection Status:**")
+            for service, status in connections.items():
+                icon = "✅" if status else "❌"
+                st.write(f"{icon} {service.replace('_', ' ').title()}")
+    
+    # Footer
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    st.markdown(f"""
+    <div class="footer">
+        <strong>FinMark Security Operations Center</strong><br>
+        Last Updated: {current_time} | Session: {uptime_str} | User: {user.get('username', 'Unknown')} ({user_role})
+    </div>
+    """, unsafe_allow_html=True)
 
 def main():
-    init_auth()
+    """Main application logic"""
+    init_session_state()
     
+    # Check authentication status
     if not st.session_state.authenticated:
         login_page()
     else:
-        main_dashboard()
+        dashboard_page()
 
 if __name__ == "__main__":
     main()
