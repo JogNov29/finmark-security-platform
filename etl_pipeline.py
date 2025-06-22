@@ -84,7 +84,7 @@ class FinMarkETLPipeline:
                 try:
                     df = pd.read_csv('network_inventory.csv', encoding=encoding)
                     logger.info(f"‚úÖ Successfully extracted network_inventory.csv with {encoding} encoding")
-                    logger.info(f"Ì≥ä Raw data shape: {df.shape}")
+                    logger.info(f"ÔøΩÔøΩÔøΩ Raw data shape: {df.shape}")
                     return df
                 except UnicodeDecodeError:
                     continue
@@ -115,7 +115,7 @@ class FinMarkETLPipeline:
                     try:
                         df = pd.read_csv(filename, encoding=encoding)
                         logger.info(f"‚úÖ Successfully extracted {filename} with {encoding} encoding")
-                        logger.info(f"Ì≥ä Raw data shape: {df.shape}")
+                        logger.info(f"ÔøΩÔøΩÔøΩ Raw data shape: {df.shape}")
                         return df
                     except UnicodeDecodeError:
                         continue
@@ -138,7 +138,7 @@ class FinMarkETLPipeline:
         try:
             df = pd.read_csv('marketing_summary.csv')
             logger.info(f"‚úÖ Successfully extracted marketing_summary.csv")
-            logger.info(f"Ì≥ä Raw data shape: {df.shape}")
+            logger.info(f"ÔøΩÔøΩÔøΩ Raw data shape: {df.shape}")
             return df
         except Exception as e:
             logger.error(f"‚ùå Failed to extract marketing data: {e}")
@@ -506,11 +506,11 @@ class FinMarkETLPipeline:
             Dict: Pipeline execution summary
         """
         start_time = datetime.now()
-        logger.info("Ì∫Ä Starting FinMark ETL Pipeline...")
+        logger.info("ÔøΩÔøΩÔøΩ Starting FinMark ETL Pipeline...")
         logger.info("=" * 70)
         
         # Clear existing data for fresh run
-        logger.info("Ì∑π Clearing existing data...")
+        logger.info("ÔøΩÔøΩÔøΩ Clearing existing data...")
         SecurityEvent.objects.all().delete()
         SystemMetrics.objects.all().delete()
         UserActivity.objects.all().delete()
@@ -519,7 +519,7 @@ class FinMarkETLPipeline:
         admin_user = self.create_admin_user()
         
         # ============ EXTRACTION PHASE ============
-        logger.info("\nÌ≥• PHASE 1: DATA EXTRACTION")
+        logger.info("\nÔøΩÔøΩÔøΩ PHASE 1: DATA EXTRACTION")
         logger.info("-" * 40)
         
         raw_devices_df = self.extract_network_inventory()
@@ -527,7 +527,7 @@ class FinMarkETLPipeline:
         raw_marketing_df = self.extract_marketing_data()
         
         # ============ TRANSFORMATION PHASE ============
-        logger.info("\nÌ¥Ñ PHASE 2: DATA TRANSFORMATION")
+        logger.info("\nÔøΩÔøΩÔøΩ PHASE 2: DATA TRANSFORMATION")
         logger.info("-" * 40)
         
         cleaned_devices = self.clean_network_inventory(raw_devices_df)
@@ -535,7 +535,7 @@ class FinMarkETLPipeline:
         system_metrics = self.generate_system_metrics(cleaned_devices)
         
         # ============ LOADING PHASE ============
-        logger.info("\nÌ≥§ PHASE 3: DATA LOADING")
+        logger.info("\nÔøΩÔøΩÔøΩ PHASE 3: DATA LOADING")
         logger.info("-" * 40)
         
         self.processed_records['devices'] = self.load_devices(cleaned_devices)
@@ -559,7 +559,7 @@ class FinMarkETLPipeline:
         logger.info("\n" + "=" * 70)
         logger.info("‚úÖ FINMARK ETL PIPELINE COMPLETED!")
         logger.info(f"‚è±Ô∏è Execution Time: {duration}")
-        logger.info(f"Ì≥ä Total Records Processed: {summary['total_records']}")
+        logger.info(f"ÔøΩÔøΩÔøΩ Total Records Processed: {summary['total_records']}")
         logger.info(f"‚ùå Errors: {len(self.errors)}")
         
         # Log detailed results
@@ -578,7 +578,7 @@ class FinMarkETLPipeline:
         with open(report_filename, 'w') as f:
             json.dump(summary, f, indent=2, default=str)
         
-        logger.info(f"Ì≥Ñ Pipeline report saved: {report_filename}")
+        logger.info(f"ÔøΩÔøΩÔøΩ Pipeline report saved: {report_filename}")
 
 
 def main():
@@ -597,7 +597,7 @@ def main():
     try:
         summary = pipeline.run_pipeline()
         
-        print(f"\nÌæØ ETL PIPELINE SUMMARY:")
+        print(f"\nÔøΩÔøΩÔøΩ ETL PIPELINE SUMMARY:")
         print(f"   Status: {summary['pipeline_status']}")
         print(f"   Duration: {summary['execution_time']}")
         print(f"   Records: {summary['total_records']}")
@@ -605,13 +605,13 @@ def main():
         
         if summary['pipeline_status'] == 'SUCCESS':
             print("\n‚úÖ Pipeline completed successfully!")
-            print("Ì∫Ä You can now start the dashboard with: ./run.sh")
-            print("Ìºê Access dashboard at: http://localhost:8501")
+            print("ÔøΩÔøΩÔøΩ You can now start the dashboard with: ./run.sh")
+            print("ÔøΩÔøΩÔøΩ Access dashboard at: http://localhost:8501")
             
         return 0
         
     except Exception as e:
-        logger.error(f"Ì≤• Pipeline failed with critical error: {e}")
+        logger.error(f"ÔøΩÔøΩÔøΩ Pipeline failed with critical error: {e}")
         return 1
 
 
