@@ -702,8 +702,8 @@ def dashboard_page():
                 
                 with col2:
                     if success and data:
-                        with st.expander(f"View {endpoint} response"):
-                            st.json(data)
+                        st.caption(f"Response from {endpoint}:") 
+                        st.json(data)
             
             # Token info
             st.subheader("🔑 JWT Token Information")
