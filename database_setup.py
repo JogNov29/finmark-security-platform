@@ -19,7 +19,7 @@ django.setup()
 
 from apps.security.models import Device, SecurityEvent
 from apps.analytics.models import UserActivity, SystemMetrics
-from apps.core.models import Product
+from apps.core.models import Product, User
 from django.contrib.auth import get_user_model
 
 def setup_database():

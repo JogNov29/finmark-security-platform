@@ -41,9 +41,6 @@ db.sqlite3-journal
 .DS_Store
 Thumbs.db
 
-# Database
-*.sqlite3
-
 # Media files
 media/
 

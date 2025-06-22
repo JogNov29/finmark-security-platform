@@ -1,15 +1,13 @@
-# backend/urls.py - Fixed with Public Status Endpoints
+# backend/urls.py - Complete FinMark URLs with JWT Authentication
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from datetime import datetime
 import random
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  # Public endpoint - no authentication required
 def api_root(request):
     """API root endpoint with available endpoints"""
     return Response({
@@ -23,22 +21,20 @@ def api_root(request):
                 'refresh': '/api/auth/token/refresh/',
                 'verify': '/api/auth/token/verify/',
             },
-            'public': {
+            'api': {
                 'status': '/api/status/',
                 'metrics': '/api/metrics/',
                 'database': '/api/database/',
-            },
-            'authenticated': {
                 'user_profile': '/api/user/profile/',
             },
             'admin': '/admin/',
-        }
+        },
+        'documentation': 'FinMark Security Analytics Platform'
     })
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  # Public endpoint - no authentication required
 def api_status(request):
-    """Comprehensive system status endpoint - PUBLIC"""
+    """Comprehensive system status endpoint"""
     try:
         from django.db import connection
         with connection.cursor() as cursor:
@@ -72,9 +68,8 @@ def api_status(request):
     })
 
 @api_view(['GET']) 
-@permission_classes([AllowAny])  # Public endpoint - no authentication required
 def api_metrics(request):
-    """Security and business metrics endpoint - PUBLIC"""
+    """Security and business metrics endpoint"""
     return Response({
         'security': {
             'critical_alerts': random.randint(0, 5),
@@ -99,9 +94,8 @@ def api_metrics(request):
     })
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  # Public endpoint - no authentication required
 def api_database(request):
-    """Database connection and information endpoint - PUBLIC"""
+    """Database connection and information endpoint"""
     try:
         from django.db import connection
         from django.contrib.auth import get_user_model
@@ -139,9 +133,13 @@ def api_database(request):
         }, status=500)
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])  # This one requires authentication
 def user_profile(request):
-    """Get current user profile - REQUIRES AUTHENTICATION"""
+    """Get current user profile - requires authentication"""
+    if not request.user.is_authenticated:
+        return Response({
+            'error': 'Authentication required'
+        }, status=401)
+    
     user = request.user
     return Response({
         'id': user.id,
@@ -167,20 +165,18 @@ urlpatterns = [
     # Django Admin
     path('admin/', admin.site.urls),
     
-    # API Root - PUBLIC
+    # API Root
     path('api/', api_root, name='api_root'),
     
-    # JWT Authentication Endpoints
+    # JWT Authentication Endpoints (FIXED - These were missing!)
     path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     
-    # Public API Endpoints (No authentication required)
+    # API Endpoints
     path('api/status/', api_status, name='api_status'),
     path('api/metrics/', api_metrics, name='api_metrics'),
     path('api/database/', api_database, name='api_database'),
-    
-    # Authenticated API Endpoints
     path('api/user/profile/', user_profile, name='user_profile'),
 ]
 
@@ -190,3 +186,6 @@ try:
 except ImportError:
     # Dashboard app doesn't exist or doesn't have URLs
     pass
+
+# Development note: Make sure these packages are installed:
+# pip install djangorestframework-simplejwt django-cors-headers

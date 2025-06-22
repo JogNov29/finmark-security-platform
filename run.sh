@@ -149,7 +149,7 @@ try:
         content = f.read()
 
     # Configure database to use the specific SQLite file
-    db_path = os.path.abspath('finmark_database.sqlite3')
+    db_path = os.path.abspath('db.sqlite3')
     db_config = f'''
 DATABASES = {{
     'default': {{
