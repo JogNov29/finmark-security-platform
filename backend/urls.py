@@ -1,15 +1,13 @@
-# backend/urls.py - Fixed with Public Status Endpoints
+# backend/urls.py - Complete FinMark URLs with JWT Authentication
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from datetime import datetime
 import random
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  # Public endpoint - no authentication required
 def api_root(request):
     """API root endpoint with available endpoints"""
     return Response({
@@ -23,12 +21,10 @@ def api_root(request):
                 'refresh': '/api/auth/token/refresh/',
                 'verify': '/api/auth/token/verify/',
             },
-            'public': {
+            'api': {
                 'status': '/api/status/',
                 'metrics': '/api/metrics/',
                 'database': '/api/database/',
-            },
-            'authenticated': {
                 'user_profile': '/api/user/profile/',
             },
             'admin': '/admin/',
@@ -36,9 +32,8 @@ def api_root(request):
     })
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  # Public endpoint - no authentication required
 def api_status(request):
-    """Comprehensive system status endpoint - PUBLIC"""
+    """Comprehensive system status endpoint"""
     try:
         from django.db import connection
         with connection.cursor() as cursor:
@@ -61,47 +56,25 @@ def api_status(request):
         'services': {
             'api': 'healthy',
             'authentication': 'healthy',
-            'security_monitor': 'healthy',
-            'dashboard': 'healthy'
-        },
-        'system': {
-            'uptime': '99.8%',
-            'load': 'normal',
-            'memory': 'normal'
+            'security_monitor': 'healthy'
         }
     })
 
 @api_view(['GET']) 
-@permission_classes([AllowAny])  # Public endpoint - no authentication required
 def api_metrics(request):
-    """Security and business metrics endpoint - PUBLIC"""
+    """Security and business metrics endpoint"""
     return Response({
-        'security': {
-            'critical_alerts': random.randint(0, 5),
-            'active_threats': random.randint(8, 15),
-            'failed_logins': random.randint(15, 35),
-            'system_health': round(random.uniform(95, 99.5), 1),
-        },
-        'business': {
-            'daily_orders': random.randint(1500, 2500),
-            'revenue_today': round(random.uniform(75000, 125000), 2),
-            'active_users': random.randint(200, 500),
-            'conversion_rate': round(random.uniform(3.2, 5.8), 1),
-        },
-        'system': {
-            'response_time': random.randint(120, 280),
-            'cpu_usage': round(random.uniform(45, 75), 1),
-            'memory_usage': round(random.uniform(60, 85), 1),
-            'requests_per_minute': random.randint(450, 850),
-        },
-        'timestamp': datetime.now().isoformat(),
-        'data_freshness': 'real-time'
+        'critical_alerts': random.randint(0, 5),
+        'active_threats': random.randint(8, 15),
+        'failed_logins': random.randint(15, 35),
+        'system_health': round(random.uniform(95, 99.5), 1),
+        'daily_orders': random.randint(1500, 2500),
+        'timestamp': datetime.now().isoformat()
     })
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  # Public endpoint - no authentication required
 def api_database(request):
-    """Database connection and information endpoint - PUBLIC"""
+    """Database connection and information endpoint"""
     try:
         from django.db import connection
         from django.contrib.auth import get_user_model
@@ -111,76 +84,57 @@ def api_database(request):
         with connection.cursor() as cursor:
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
             tables = [row[0] for row in cursor.fetchall()]
-            
-            # Get database file info
-            import os
-            db_path = None
-            for possible_path in ['db.sqlite3', 'finmark_database.sqlite3']:
-                if os.path.exists(possible_path):
-                    db_path = os.path.abspath(possible_path)
-                    break
         
         return Response({
             'database_connected': True,
-            'database_path': db_path,
             'tables': tables,
             'table_count': len(tables),
             'users_count': User.objects.count(),
-            'active_users': User.objects.filter(is_active=True).count(),
-            'admin_users': User.objects.filter(is_superuser=True).count(),
             'last_check': datetime.now().isoformat()
         })
         
     except Exception as e:
         return Response({
             'database_connected': False,
-            'error': str(e),
-            'last_check': datetime.now().isoformat()
+            'error': str(e)
         }, status=500)
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])  # This one requires authentication
 def user_profile(request):
-    """Get current user profile - REQUIRES AUTHENTICATION"""
+    """Get current user profile - requires authentication"""
+    if not request.user.is_authenticated:
+        return Response({'error': 'Authentication required'}, status=401)
+    
     user = request.user
     return Response({
-        'id': user.id,
         'username': user.username,
         'email': user.email,
-        'first_name': user.first_name,
-        'last_name': user.last_name,
         'is_staff': user.is_staff,
         'is_superuser': user.is_superuser,
-        'is_active': user.is_active,
-        'date_joined': user.date_joined.isoformat() if user.date_joined else None,
-        'last_login': user.last_login.isoformat() if user.last_login else None,
         'permissions': {
             'can_view_dashboard': True,
             'can_view_security_metrics': user.is_staff,
-            'can_view_admin_functions': user.is_superuser,
-            'can_manage_users': user.is_superuser
+            'can_view_admin_functions': user.is_superuser
         }
     })
 
-# URL Patterns
+# URL Patterns with JWT Authentication (FIXED!)
 urlpatterns = [
     # Django Admin
     path('admin/', admin.site.urls),
     
-    # API Root - PUBLIC
+    # API Root
     path('api/', api_root, name='api_root'),
     
-    # JWT Authentication Endpoints
+    # JWT Authentication Endpoints (These were missing!)
     path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     
-    # Public API Endpoints (No authentication required)
+    # API Endpoints
     path('api/status/', api_status, name='api_status'),
     path('api/metrics/', api_metrics, name='api_metrics'),
     path('api/database/', api_database, name='api_database'),
-    
-    # Authenticated API Endpoints
     path('api/user/profile/', user_profile, name='user_profile'),
 ]
 
@@ -188,5 +142,4 @@ urlpatterns = [
 try:
     urlpatterns.append(path('api/dashboard/', include('dashboard.urls')))
 except ImportError:
-    # Dashboard app doesn't exist or doesn't have URLs
     pass
