@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import requests
 import json
 import numpy as np
+import time
 
 # Page configuration
 st.set_page_config(
@@ -118,6 +119,9 @@ def test_auth(username, password):
     except:
         return False
 
+MAX_ATTEMPTS = 3
+COOLDOWN_SECONDS = 300 #5 mins
+
 def main():
     # Header
     st.markdown("""
@@ -132,6 +136,11 @@ def main():
         st.session_state.authenticated = False
         st.session_state.username = None
         st.session_state.login_time = None
+    if 'login_attempts' not in st.session_state:
+        st.session_state.login_attempts = 0
+    if 'lockout_time' not in st.session_state:
+        st.session_state.lockout_time = None
+
     
     # Sidebar
     with st.sidebar:
@@ -152,25 +161,59 @@ def main():
                 st.session_state.authenticated = False
                 st.session_state.username = None
                 st.session_state.login_time = None
+                st.session_state.login_attempts = 0
+                st.session_state.lockout_time = None
                 st.rerun()
         
         else:
-            # Login form
             st.subheader("🔐 Login")
+
+            now = datetime.now()
+
+            # Handle cooldown
+            if st.session_state.login_attempts >= MAX_ATTEMPTS:
+                if st.session_state.lockout_time is None:
+                    st.session_state.lockout_time = now
+
+                cooldown_end = st.session_state.lockout_time + timedelta(seconds=COOLDOWN_SECONDS)
+                if now < cooldown_end:
+                    remaining_time = int((cooldown_end - now).total_seconds())
+
+                    # Live countdown
+                    countdown_placeholder = st.empty()
+                    while remaining_time > 0:
+                        mins, secs = divmod(remaining_time, 60)
+                        countdown_placeholder.warning(f"⏳ Too many failed attempts. Retry in {mins}:{secs:02d} minute(s)...")
+                        time.sleep(1)
+                        remaining_time -= 1
+                        countdown_placeholder.empty()
+                    # Reset after cooldown
+                    st.session_state.login_attempts = 0
+                    st.session_state.lockout_time = None
+                    st.rerun()
+
+            # Login form
             with st.form("login_form"):
                 username = st.text_input("Username", value="admin")
                 password = st.text_input("Password", type="password", value="admin123")
                 login_button = st.form_submit_button("Login")
-                
+
                 if login_button:
                     if test_auth(username, password):
                         st.session_state.authenticated = True
                         st.session_state.username = username
                         st.session_state.login_time = datetime.now().strftime("%H:%M:%S")
+                        st.session_state.login_attempts = 0
+                        st.session_state.lockout_time = None
                         st.success("✅ Login successful!")
                         st.rerun()
                     else:
-                        st.error("❌ Login failed")
+                        st.session_state.login_attempts += 1
+                        remaining = MAX_ATTEMPTS - st.session_state.login_attempts
+                        if remaining > 0:
+                            st.error(f"❌ Login failed. {remaining} attempt(s) remaining.")
+                        else:
+                            st.warning("🚫 Too many failed login attempts. Please wait...")
         
         st.markdown("---")
         st.markdown("### ⚙️ Quick Actions")
